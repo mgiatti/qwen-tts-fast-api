@@ -1,0 +1,24 @@
+# Docker ignore file
+.git
+.gitignore
+.agent
+.vscode
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+env/
+venv/
+
+# Project specifically
+output/
+tmp/
+*.wav
+*.MP3
+*.txt
+!requirements.txt
+
+# Log files
+*.log

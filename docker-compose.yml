@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  qwen-tts-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qwen-tts-api
+    ports:
+      - "8008:8000"
+    volumes:
+      - .:/app
+      - qwen-models-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    restart: unless-stopped
+
+volumes:
+  qwen-models-cache:
