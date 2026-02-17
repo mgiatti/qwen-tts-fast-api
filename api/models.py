@@ -3,9 +3,13 @@ from typing import Optional
 from enum import Enum
 
 class GenerationType(str, Enum):
-    OPEN_VISION = "open_vision"
     CLONE_VOICE = "clone_voice"
+    OPEN_VISION = "open_vision"
     CUSTOM_VOICE = "custom_voice"
+
+class CloneVoiceName(str, Enum):
+    VALENTINO = "valentino"
+  
 
 class GenerateRequest(BaseModel):
     text: str
@@ -16,7 +20,7 @@ class GenerateRequest(BaseModel):
     ref_text: Optional[str] = None
     instruction: Optional[str] = None
     speaker: Optional[str] = None
-    
+    clone_voice_name: Optional[CloneVoiceName] = None
     # Defaults
     language: str = "English"
 

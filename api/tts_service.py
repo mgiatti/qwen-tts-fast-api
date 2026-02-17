@@ -3,7 +3,7 @@ import torch
 import soundfile as sf
 
 from qwen_tts import Qwen3TTSModel
-from .models import GenerationType, GenerateRequest
+from .models import GenerationType, GenerateRequest, CloneVoiceName
 
 class TTSService:
     def __init__(self):
@@ -104,8 +104,14 @@ class TTSService:
         sf.write(output_path, wavs[0], sr)
 
     def _generate_clone_voice(self, request: GenerateRequest, output_path: str):
-        if not request.ref_audio_path or not request.ref_text:
-            raise ValueError("ref_audio_path and ref_text are required for CLONE_VOICE")
+        
+        ref_audio, ref_text = self._get_voice_data(request.clone_voice_name)
+        if ref_audio == '' or ref_text == '':
+            if not request.ref_audio_path or not request.ref_text:
+                raise ValueError("ref_audio_path and ref_text are required for CLONE_VOICE")
+            else:
+                ref_audio_path = request.ref_audio_path
+                ref_text = request.ref_text
             
         model = self.get_base_model() # Clone also uses the base model typically? 
         # Checking tts.py, generate_voice_clone uses Base model ("Qwen/Qwen3-TTS-12Hz-1.7B-Base")
@@ -113,8 +119,8 @@ class TTSService:
         wavs, sr = model.generate_voice_clone(
             text=request.text,
             language=request.language,
-            ref_audio=request.ref_audio_path,
-            ref_text=request.ref_text,
+            ref_audio=ref_audio_path,
+            ref_text=ref_text,
             instruct=request.instruction
         )
         sf.write(output_path, wavs[0], sr)
@@ -134,3 +140,14 @@ class TTSService:
             max_new_tokens=2048,
         )
         sf.write(output_path, wavs[0], sr)
+
+    def _get_voice_data(self, clone_voice_name: CloneVoiceName):
+        ref_audio = ""
+        ref_text  = ""
+        print(f"Getting voice data for {clone_voice_name}")
+
+        if clone_voice_name == CloneVoiceName.VALENTINO:
+            ref_audio = "clone_voices/valentino_en.wav"
+            ref_text  = "History tells us they died in flames. The warrior monks, the bankers of kings, the guardians of pilgrims - condemned as heretics and burned at the stake. On Friday the 13th, October 1307, the Knights Templar met their end, their vast wealth seized, their sacred knowledge supposedly lost to the embers of persecution.But what if they never truly vanished? What if, instead, they went underground"
+    
+        return [ref_audio, ref_text]
