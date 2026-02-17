@@ -9,7 +9,7 @@ class GenerationType(str, Enum):
   
 
 class GenerateRequest(BaseModel):
-    text: str
+    text: Optional[str] = None
     type: GenerationType
     
     # Optional fields depending on type
@@ -18,6 +18,7 @@ class GenerateRequest(BaseModel):
     instruction: Optional[str] = None
     speaker: Optional[str] = None
     clone_voice_name: Optional[str] = None
+    uploaded_file_text: Optional[str] = None
     # Defaults
     language: str = "English"
 

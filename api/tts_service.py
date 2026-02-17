@@ -1,9 +1,12 @@
 import os
 import torch
 import soundfile as sf
+import numpy as np
 
 from qwen_tts import Qwen3TTSModel
 from .models import GenerationType, GenerateRequest
+
+# ... (omitted class start)
 
 class TTSService:
     def __init__(self):
@@ -70,6 +73,18 @@ class TTSService:
         output_path = os.path.join(self.output_dir, output_filename)
         
         try:
+            # Determine text source
+            text_to_process = request.text
+            if request.uploaded_file_text:
+                text_to_process = request.uploaded_file_text
+            
+            if not text_to_process:
+                raise ValueError("No text provided for generation (neither 'text' nor 'uploaded_file_text')")
+            
+            # Temporary: Update request.text for downstream methods that rely on it
+            # A cleaner approach would be passing text_to_process directly to methods
+            request.text = text_to_process
+
             if request.type == GenerationType.OPEN_VISION:
                 self._generate_open_vision(request, output_path)
             elif request.type == GenerationType.CLONE_VOICE:
@@ -117,8 +132,8 @@ class TTSService:
                 ref_audio_path = request.ref_audio_path
                 ref_text = request.ref_text
             
-        model = self.get_base_model() # Clone also uses the base model typically? 
-        # Checking tts.py, generate_voice_clone uses Base model ("Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+        # Get model once
+        model = self.get_base_model()
         
         print(f"Generating voice clone for {request.clone_voice_name}")
         print(f"Text: {request.text}")
@@ -127,14 +142,42 @@ class TTSService:
         print(f"Ref text: {ref_text}")
         print(f"Instruction: {request.instruction}")
         
+        chunks = [request.text[i:i+800] for i in range(0, len(request.text), 800)]  # Simple char-based split
+
+        audio_chunks = []
+        sample_rates = set()
+        sr = 24000
+
+        for i, chunk in enumerate(chunks, 1):
+            print(f"Chunk {i}/{len(chunks)}...")
+            audio, chunk_sr = self._synthesize_clone_voice_chunk(model, chunk, request.language, ref_audio_path, ref_text, request.instruction)
+            audio_chunks.append(audio)
+            sample_rates.add(chunk_sr)
+
+        if len(sample_rates) > 1:
+            raise ValueError(f"Sample rate inconsistency: {sample_rates}")
+
+        if len(sample_rates) > 0:
+             sr = next(iter(sample_rates))
+
+        if audio_chunks:
+            full_audio = np.concatenate(audio_chunks)
+            sf.write(output_path, full_audio, sr)
+        else:
+             print("Warning: No audio generated")
+
+    def _synthesize_clone_voice_chunk(self, model, text, language, ref_audio_path, ref_text, instruction):
+        # Adjust max_new_tokens based on expected audio length (~12.5 tokens/sec)
         wavs, sr = model.generate_voice_clone(
-            text=request.text,
-            language=request.language,
+            text=text,
+            language=language,
             ref_audio=ref_audio_path,
             ref_text=ref_text,
-            instruct=request.instruction
+            instruct=instruction,
+            max_new_tokens=4096,
         )
-        sf.write(output_path, wavs[0], sr)
+
+        return wavs[0], sr
 
     def _generate_custom_voice(self, request: GenerateRequest, output_path: str):
         if not request.speaker:
