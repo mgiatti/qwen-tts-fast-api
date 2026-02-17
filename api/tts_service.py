@@ -3,7 +3,7 @@ import torch
 import soundfile as sf
 
 from qwen_tts import Qwen3TTSModel
-from .models import GenerationType, GenerateRequest, CloneVoiceName
+from .models import GenerationType, GenerateRequest
 
 class TTSService:
     def __init__(self):
@@ -35,12 +35,13 @@ class TTSService:
                 self.custom_model = None
                 torch.cuda.empty_cache()
             
-            print(f"Loading Base Model: {self.base_model_id}")
+            print(f"Loading Base Model AAA: {self.base_model_id}")
             self.base_model = Qwen3TTSModel.from_pretrained(
                 self.base_model_id,
                 device_map=self.device,
                 dtype=torch.bfloat16,
             )
+            print(f"Returning base model: {self.base_model_id}")
         return self.base_model
 
     def get_custom_model(self):
@@ -105,8 +106,11 @@ class TTSService:
 
     def _generate_clone_voice(self, request: GenerateRequest, output_path: str):
         
-        ref_audio, ref_text = self._get_voice_data(request.clone_voice_name)
-        if ref_audio == '' or ref_text == '':
+        ref_audio_path, ref_text = self._get_voice_data(request.clone_voice_name)
+        print(f"Ref audio: {ref_audio_path}")
+        print(f"Ref text: {ref_text}")
+
+        if ref_audio_path == '' or ref_text == '':
             if not request.ref_audio_path or not request.ref_text:
                 raise ValueError("ref_audio_path and ref_text are required for CLONE_VOICE")
             else:
@@ -115,6 +119,13 @@ class TTSService:
             
         model = self.get_base_model() # Clone also uses the base model typically? 
         # Checking tts.py, generate_voice_clone uses Base model ("Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+        
+        print(f"Generating voice clone for {request.clone_voice_name}")
+        print(f"Text: {request.text}")
+        print(f"Language: {request.language}")
+        print(f"Ref audio: {ref_audio_path}")
+        print(f"Ref text: {ref_text}")
+        print(f"Instruction: {request.instruction}")
         
         wavs, sr = model.generate_voice_clone(
             text=request.text,
@@ -141,13 +152,15 @@ class TTSService:
         )
         sf.write(output_path, wavs[0], sr)
 
-    def _get_voice_data(self, clone_voice_name: CloneVoiceName):
-        ref_audio = ""
+    def _get_voice_data(self, clone_voice_name: str):
+        ref_audio_path = ""
         ref_text  = ""
         print(f"Getting voice data for {clone_voice_name}")
 
-        if clone_voice_name == CloneVoiceName.VALENTINO:
-            ref_audio = "clone_voices/valentino_en.wav"
-            ref_text  = "History tells us they died in flames. The warrior monks, the bankers of kings, the guardians of pilgrims - condemned as heretics and burned at the stake. On Friday the 13th, October 1307, the Knights Templar met their end, their vast wealth seized, their sacred knowledge supposedly lost to the embers of persecution.But what if they never truly vanished? What if, instead, they went underground"
-    
-        return [ref_audio, ref_text]
+        file_path = f'clone_voices/{clone_voice_name}.txt'  # Replace with your actual path
+        # Open and read the file
+        with open(file_path, 'r', encoding='utf-8') as file:
+            ref_text = file.read()
+            ref_audio_path = f"clone_voices/{clone_voice_name}.wav"
+        
+        return [ref_audio_path, ref_text]

@@ -6,9 +6,6 @@ class GenerationType(str, Enum):
     CLONE_VOICE = "clone_voice"
     OPEN_VISION = "open_vision"
     CUSTOM_VOICE = "custom_voice"
-
-class CloneVoiceName(str, Enum):
-    VALENTINO = "valentino"
   
 
 class GenerateRequest(BaseModel):
@@ -20,7 +17,7 @@ class GenerateRequest(BaseModel):
     ref_text: Optional[str] = None
     instruction: Optional[str] = None
     speaker: Optional[str] = None
-    clone_voice_name: Optional[CloneVoiceName] = None
+    clone_voice_name: Optional[str] = None
     # Defaults
     language: str = "English"
 

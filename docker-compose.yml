@@ -10,7 +10,7 @@ services:
       - "8008:8000"
     volumes:
       - .:/app
-      - qwen-models-cache:/root/.cache/huggingface
+      - ./models_cache:/root/.cache/huggingface
     deploy:
       resources:
         reservations:
@@ -20,8 +20,5 @@ services:
               capabilities: [gpu]
     environment:
       - CUDA_VISIBLE_DEVICES=0
-    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir api
     restart: unless-stopped
-
-volumes:
-  qwen-models-cache:

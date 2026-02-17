@@ -46,3 +46,4 @@ tmp
 ## AI Tooling
 .agent/
 .vscode/
+models_cache/
