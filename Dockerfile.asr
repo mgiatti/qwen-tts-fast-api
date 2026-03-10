@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Qwen3-ASR Service Dockerfile
+# Uses Python 3.12 (required by qwen-asr) and CUDA 12.1 devel image
+# (devel is needed to compile flash-attn which greatly reduces VRAM usage
+#  and speeds up inference for long audio inputs).
+# ─────────────────────────────────────────────────────────────────────────────
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    MAX_JOBS=4
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-dev \
+    python3.12-venv \
+    python3.12-distutils \
+    ffmpeg \
+    libsndfile1 \
+    git \
+    curl \
+    build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pip for python3.12
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
+
+# Set python3.12 as default
+RUN ln -sf /usr/bin/python3.12 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.12 /usr/bin/python
+
+# Upgrade pip
+RUN pip install --upgrade pip setuptools wheel
+
+# Set the working directory
+WORKDIR /app
+
+# Copy ASR-specific requirements first to leverage Docker cache
+COPY asr/requirements.txt asr/requirements.txt
+
+# Install PyTorch with CUDA 12.1 support
+RUN pip install --no-cache-dir \
+    torch==2.2.2+cu121 \
+    torchaudio==2.2.2+cu121 \
+    --extra-index-url https://download.pytorch.org/whl/cu121
+
+# Install qwen-asr (transformers backend)
+RUN pip install --no-cache-dir qwen-asr
+
+# Install FlashAttention 2 for reduced VRAM usage & faster inference on long audio
+# MAX_JOBS=4 prevents OOM during compilation on machines with moderate RAM
+RUN pip install --no-cache-dir flash-attn --no-build-isolation
+
+# Install remaining ASR service requirements
+RUN pip install --no-cache-dir -r asr/requirements.txt
+
+# Copy the ASR service code
+COPY asr/ ./asr/
+
+# Expose the port the ASR app runs on
+EXPOSE 8001
+
+# Command to run the ASR service
+CMD ["uvicorn", "asr.main:app", "--host", "0.0.0.0", "--port", "8001"]

@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+  # ─────────────────────────────────────────────────────────────────────────
+  # TTS Service  (port 8008 → container 8000)
+  # ─────────────────────────────────────────────────────────────────────────
   qwen-tts-api:
     build:
       context: .
@@ -21,4 +24,35 @@ services:
     environment:
       - CUDA_VISIBLE_DEVICES=0
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir api
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # ASR Service  (port 8009 → container 8001)
+  # Built from a dedicated Dockerfile (Python 3.12 + flash-attn + qwen-asr)
+  # ─────────────────────────────────────────────────────────────────────────
+  qwen-asr-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.asr
+    container_name: qwen-asr-api
+    ports:
+      - "8009:8001"
+    volumes:
+      - ./asr:/app/asr                        # live-reload the ASR service code
+      - ./models_cache:/root/.cache/huggingface  # share model cache with TTS
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      # Override any of these to switch model / device:
+      - ASR_MODEL_ID=Qwen/Qwen3-ASR-1.7B
+      - ASR_FORCED_ALIGNER_ID=Qwen/Qwen3-ForcedAligner-0.6B
+      - ASR_DEVICE=cuda:0
+      - ASR_USE_FLASH_ATTN=true
+    command: uvicorn asr.main:app --host 0.0.0.0 --port 8001 --reload --reload-dir asr
     restart: unless-stopped

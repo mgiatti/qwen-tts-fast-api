@@ -1,0 +1,11 @@
+# ASR Service dependencies
+# PyTorch and qwen-asr are installed separately in the Dockerfile
+# to control exact version / index URL.
+
+fastapi==0.128.0
+uvicorn==0.40.0
+python-multipart==0.0.21
+pydantic==2.12.5
+soundfile==0.13.1
+numpy==1.26.4
+aiofiles==24.1.0

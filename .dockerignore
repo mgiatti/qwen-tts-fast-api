@@ -15,6 +15,7 @@ venv/
 # Project specifically
 output/
 tmp/
+asr/
 *.wav
 *.MP3
 *.txt
